@@ -1,0 +1,222 @@
+import { useState } from "react";
+import { useHistory } from "react-router";
+import { Form, Button } from "react-bootstrap";
+import axios from "axios";
+import { Alert } from "react-bootstrap";
+import SearchTags from "./SearchTag";
+import MyMapComponent from "./Map.js";
+
+/* Component displayed when creating new activity suggestions */
+
+const PostActivityRecommendation = ({ token, update }) => {
+  const history = useHistory();
+  const [title, setTitle] = useState("");
+  const [shortDescription, setShort] = useState("");
+  const [description, setDescription] = useState("");
+  const [place, setPlace] = useState("");
+  const [picture, setPicture] = useState(null);
+  const [error, setError] = useState("");
+  const [tags, setTags] = useState([]);
+  const allowedTags = [
+    "Skitur",
+    "Vann",
+    "Fjell",
+    "Snø",
+    "Friluft",
+    "Lagsport",
+    "Chillern",
+  ];
+
+  /**
+   * Registers which tags are checked
+   */
+  function tagsFormat() {
+    var checked = [];
+
+    allowedTags.forEach((tag) => {
+      if (document.getElementById("tag_" + tag).checked == true) {
+        checked.push(tag);
+      }
+    });
+
+    setTags(checked);
+  }
+
+  /**
+   * Checks if inputs are valid or not
+   * @returns true if valid or not
+   */
+  function checkValidity() {
+    if (
+      title === "" ||
+      shortDescription === "" ||
+      description === "" ||
+      place === "" ||
+      picture == null
+    ) {
+      setError("Fyll inn alle felt.");
+      return false;
+    } else if (
+      title.trim() === "" ||
+      shortDescription.trim() === "" ||
+      description.trim() === "" ||
+      place.trim() === "" ||
+      picture == null
+    ) {
+      setError("Tekstfelt med bare mellomrom er ikke gyldig.");
+      return false;
+    } else if (title.length > 25) {
+      setError(
+        "Tittelen er for lang. Den er " +
+          title.length +
+          " tegn mens grensen er 25."
+      );
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  /**
+   * Posts new activity to backend
+   * @param {*} e
+   */
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    tagsFormat();
+
+    const status = checkValidity();
+    if (status === false) {
+      return;
+    }
+
+    e.preventDefault();
+    let form_data = new FormData();
+    form_data.append("title", title);
+    form_data.append("short_description", shortDescription);
+    form_data.append("description", description);
+    form_data.append("place", place);
+    form_data.append("activity_type", 0);
+    form_data.append("picture", picture);
+    form_data.append("tags", tags);
+
+    //Sets the coordinates to the default if nothing was stored or added
+    if (
+      localStorage.getItem("LAT") === null ||
+      localStorage.getItem("LNG") === null
+    ) {
+      form_data.append("lat", 63.4305);
+      form_data.append("lng", 10.3951);
+    } else {
+      form_data.append("lat", localStorage.getItem("LAT"));
+      form_data.append("lng", localStorage.getItem("LNG"));
+    }
+
+    let url = "http://localhost:8000/test2/";
+    axios
+      .post(url, form_data, {
+        headers: {
+          "content-type": "multipart/form-data",
+          Authorization: `Token ${token["mytoken"]}`,
+        },
+      })
+      .then((result) => {
+        update(token["mytoken"]);
+        history.push("/");
+      })
+      .catch((error) => {
+        console.log(error)
+        setError("Kontakt support");
+      });
+  };
+
+  return (
+    <div>
+      <div id="create-activity-form">
+        <div height={80}></div>
+        <h1>Opprett nytt aktivitetsforslag</h1>
+        <br />
+        <Form onSubmit={onSubmit}>
+          <Form.Group>
+            <Form.Label>Tittel</Form.Label>
+            <Form.Control
+              placeholder="Tittel"
+              id="Tittel"
+              maxlength="120"
+              onChange={(e) => setTitle(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
+
+          <Form.Group>
+            <Form.Label>Kort beskrivelse</Form.Label>
+            <Form.Control
+              placeholder="Kort beskrivelse"
+              id="short-description"
+              maxlength="200"
+              onChange={(e) => setShort(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group>
+            <Form.Label>Beskrivelse</Form.Label>
+            <Form.Control
+              as="textarea"
+              id="description"
+              rows={5}
+              maxlength="200"
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group>
+            <Form.Label>Sted</Form.Label>
+            <Form.Control
+              placeholder="Oppgi et sted"
+              id="place"
+              maxlength="120"
+              onChange={(e) => setPlace(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
+
+          <Form.Group>
+            <Form.Label>Tags</Form.Label>
+            <SearchTags
+              allowedTags={allowedTags}
+              onclick={() => tagsFormat()}
+            />
+          </Form.Group>
+
+          <br />
+          <MyMapComponent
+            lat={63.4305}
+            lng={10.3951}
+            isDraggable={true}
+            googleMapURL="https://maps.googleapis.com/maps/api/js?key=AIzaSyBX1-hogWKd9auZ8sfgly3dRumOY8rKMII"
+            loadingElement={<div style={{ height: `80%`, width: `80%` }} />}
+            containerElement={<div style={{ height: `400px`, width: `50%` }} />}
+            mapElement={<div style={{ height: `80%` }} />}
+          />
+          <Form.Group>
+            <Form.File
+              type="file"
+              id="exampleFormControlFile1"
+              label="Legg med et bilde"
+              onChange={(e) => {
+                setPicture(e.target.files[0]);
+              }}
+            />
+          </Form.Group>
+          <br />
+          <Button classvariant="primary" type="submit">
+            Opprett aktivitetsforslag
+          </Button>
+        </Form>
+        <br />
+        <br />
+        {error && <Alert variant="danger">{error}</Alert>}
+      </div>
+    </div>
+  );
+};
+export default PostActivityRecommendation;
